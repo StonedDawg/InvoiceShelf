@@ -121,7 +121,7 @@ const props = defineProps({
   defaultInputClass: {
     type: String,
     default:
-      'font-base pl-8 py-2 outline-none focus:ring-primary-400 focus:outline-none focus:border-primary-400 block w-full sm:text-sm border-gray-200 rounded-md text-black',
+      'font-base pl-8 py-2 outline-hidden focus:ring-primary-400 focus:outline-hidden focus:border-primary-400 block w-full sm:text-sm border-gray-200 rounded-md text-black',
   },
   time24hr: {
     type: Boolean,
@@ -254,6 +254,14 @@ const carbonFormat = computed(() => {
   return companyStore.selectedCompanySettings?.carbon_date_format
 })
 
+const carbonFormatWithTime = computed(() => {
+  let format = companyStore.selectedCompanySettings?.carbon_date_format
+  if (companyStore.selectedCompanySettings?.invoice_use_time === 'YES') {
+    format += ' ' + companyStore.selectedCompanySettings?.carbon_time_format
+  }
+  return format.replace("g", "h").replace("a", "K");
+})
+
 const hasIconSlot = computed(() => {
   return !!slots.icon
 })
@@ -274,7 +282,7 @@ const inputInvalidClass = computed(() => {
 
 const inputDisabledClass = computed(() => {
   if (props.disabled) {
-    return 'border border-solid rounded-md outline-none input-field box-border-2 base-date-picker-input placeholder-gray-400 bg-gray-200 text-gray-600 border-gray-200'
+    return 'border border-solid rounded-md outline-hidden input-field box-border-2 base-date-picker-input placeholder-gray-400 bg-gray-200 text-gray-600 border-gray-200'
   }
 
   return ''
@@ -301,7 +309,7 @@ watch(
       config.altFormat = carbonFormat.value ? carbonFormat.value : 'd M Y'
     } else {
       config.altFormat = carbonFormat.value
-        ? `${carbonFormat.value} H:i `
+        ? `${carbonFormatWithTime.value}`
         : 'd M Y H:i'
     }
   },

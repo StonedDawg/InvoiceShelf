@@ -9,6 +9,7 @@ use App\Http\Resources\ItemResource;
 use App\Models\Item;
 use App\Models\Setting;
 use App\Models\TaxType;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ItemsController extends Controller
@@ -16,7 +17,7 @@ class ItemsController extends Controller
     /**
      * Retrieve a list of existing Items.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function index(Request $request)
     {
@@ -46,7 +47,7 @@ class ItemsController extends Controller
      * Create Item.
      *
      * @param  App\Http\Requests\ItemsRequest  $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function store(Requests\ItemsRequest $request)
     {
@@ -60,7 +61,7 @@ class ItemsController extends Controller
     /**
      * get an existing Item.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function show(Item $item)
     {
@@ -73,7 +74,7 @@ class ItemsController extends Controller
      * Update an existing Item.
      *
      * @param  App\Http\Requests\ItemsRequest  $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function update(Requests\ItemsRequest $request, Item $item)
     {
@@ -87,14 +88,18 @@ class ItemsController extends Controller
     /**
      * Delete a list of existing Items.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\JsonResponse
+     * @param  Request  $request
+     * @return JsonResponse
      */
     public function delete(DeleteItemsRequest $request)
     {
         $this->authorize('delete multiple items');
 
-        Item::destroy($request->ids);
+        $ids = Item::whereCompany()
+            ->whereIn('id', $request->ids)
+            ->pluck('id');
+
+        Item::destroy($ids);
 
         return response()->json([
             'success' => true,

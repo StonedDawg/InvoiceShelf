@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\V1\Admin\Estimate;
 
+use App\Facades\Hashids;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\InvoiceResource;
 use App\Models\CompanySetting;
@@ -10,15 +11,15 @@ use App\Models\Invoice;
 use App\Services\SerialNumberFormatter;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
-use Vinkla\Hashids\Facades\Hashids;
 
 class ConvertEstimateController extends Controller
 {
     /**
      * Handle the incoming request.
      *
-     * @return \Illuminate\Http\Response
+     * @return Response
      */
     public function __invoke(Request $request, Estimate $estimate, Invoice $invoice)
     {
@@ -42,7 +43,7 @@ class ConvertEstimateController extends Controller
             $due_date = Carbon::now()->addDays($dueDateDays)->format('Y-m-d');
         }
 
-        $serial = (new SerialNumberFormatter())
+        $serial = (new SerialNumberFormatter)
             ->setModel($invoice)
             ->setCompany($estimate->company_id)
             ->setCustomer($estimate->customer_id)

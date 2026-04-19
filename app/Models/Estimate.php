@@ -3,23 +3,22 @@
 namespace App\Models;
 
 use App;
+use App\Facades\Hashids;
+use App\Facades\PDF;
 use App\Mail\SendEstimateMail;
 use App\Services\SerialNumberFormatter;
+use App\Space\PdfTemplateUtils;
 use App\Traits\GeneratesPdfTrait;
 use App\Traits\HasCustomFieldsTrait;
-use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Str;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
-use Vinkla\Hashids\Facades\Hashids;
 
 class Estimate extends Model implements HasMedia
 {
@@ -80,7 +79,7 @@ class Estimate extends Model implements HasMedia
 
     public function items(): HasMany
     {
-        return $this->hasMany(\App\Models\EstimateItem::class);
+        return $this->hasMany(EstimateItem::class);
     }
 
     public function customer(): BelongsTo
@@ -90,12 +89,12 @@ class Estimate extends Model implements HasMedia
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'creator_id');
+        return $this->belongsTo(User::class, 'creator_id');
     }
 
     public function company(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Company::class);
+        return $this->belongsTo(Company::class);
     }
 
     public function currency(): BelongsTo
@@ -227,7 +226,7 @@ class Estimate extends Model implements HasMedia
 
         $estimate = self::create($data);
         $estimate->unique_hash = Hashids::connection(Estimate::class)->encode($estimate->id);
-        $serial = (new SerialNumberFormatter())
+        $serial = (new SerialNumberFormatter)
             ->setModel($estimate)
             ->setCompany($estimate->company_id)
             ->setCustomer($estimate->customer_id)
@@ -262,7 +261,7 @@ class Estimate extends Model implements HasMedia
     {
         $data = $request->getEstimatePayload();
 
-        $serial = (new SerialNumberFormatter())
+        $serial = (new SerialNumberFormatter)
             ->setModel($this)
             ->setCompany($this->company_id)
             ->setCustomer($request->customer_id)
@@ -375,7 +374,14 @@ class Estimate extends Model implements HasMedia
             $this->save();
         }
 
-        \Mail::to($data['to'])->send(new SendEstimateMail($data));
+        $mail = \Mail::to($data['to']);
+        if (! empty($data['cc'])) {
+            $mail->cc($data['cc']);
+        }
+        if (! empty($data['bcc'])) {
+            $mail->bcc($data['bcc']);
+        }
+        $mail->send(new SendEstimateMail($data));
 
         return [
             'success' => true,
@@ -424,11 +430,14 @@ class Estimate extends Model implements HasMedia
             'taxes' => $taxes,
         ]);
 
+        $template = PdfTemplateUtils::findFormattedTemplate('estimate', $estimateTemplate, '');
+        $templatePath = $template['custom'] ? sprintf('pdf_templates::estimate.%s', $estimateTemplate) : sprintf('app.pdf.estimate.%s', $estimateTemplate);
+
         if (request()->has('preview')) {
-            return view('app.pdf.estimate.'.$estimateTemplate);
+            return view($templatePath);
         }
 
-        return PDF::loadView('app.pdf.estimate.'.$estimateTemplate);
+        return PDF::loadView($templatePath);
     }
 
     public function getCompanyAddress()
@@ -499,27 +508,13 @@ class Estimate extends Model implements HasMedia
         ];
     }
 
-    public static function estimateTemplates()
-    {
-        $templates = Storage::disk('views')->files('/app/pdf/estimate');
-        $estimateTemplates = [];
-
-        foreach ($templates as $key => $template) {
-            $templateName = Str::before(basename($template), '.blade.php');
-            $estimateTemplates[$key]['name'] = $templateName;
-            $estimateTemplates[$key]['path'] = Vite::asset('resources/static/img/PDF/'.$templateName.'.png');
-        }
-
-        return $estimateTemplates;
-    }
-
     public function getInvoiceTemplateName()
     {
         $templateName = Str::replace('estimate', 'invoice', $this->template_name);
 
         $name = [];
 
-        foreach (Invoice::invoiceTemplates() as $template) {
+        foreach (PdfTemplateUtils::getFormattedTemplates('invoice') as $template) {
             $name[] = $template['name'];
         }
 

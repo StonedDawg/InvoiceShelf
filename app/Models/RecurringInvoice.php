@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Facades\Hashids;
 use App\Http\Requests\RecurringInvoiceRequest;
 use App\Services\SerialNumberFormatter;
 use App\Traits\HasCustomFieldsTrait;
@@ -11,7 +12,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Vinkla\Hashids\Facades\Hashids;
 
 class RecurringInvoice extends Model
 {
@@ -307,9 +307,9 @@ class RecurringInvoice extends Model
 
     public function createInvoice()
     {
-        //get invoice_number
-        $serial = (new SerialNumberFormatter())
-            ->setModel(new Invoice())
+        // get invoice_number
+        $serial = (new SerialNumberFormatter)
+            ->setModel(new Invoice)
             ->setCompany($this->company_id)
             ->setCustomer($this->customer_id)
             ->setNextNumbers();
@@ -375,7 +375,7 @@ class RecurringInvoice extends Model
             $invoice->addCustomFields($customField);
         }
 
-        //send automatically
+        // send automatically
         if ($this->send_automatically == true) {
             $data = [
                 'body' => CompanySetting::getSetting('invoice_mail_body', $this->company_id),

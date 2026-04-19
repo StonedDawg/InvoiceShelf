@@ -22,9 +22,12 @@ use App\Policies\UserPolicy;
 use App\Space\InstallUtils;
 use Gate;
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\ServiceProvider;
 use Silber\Bouncer\Database\Models as BouncerModels;
 use Silber\Bouncer\Database\Role;
+use View;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -58,8 +61,16 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(Role::class, RolePolicy::class);
 
+        View::addNamespace('pdf_templates', storage_path('app/templates/pdf'));
+
         $this->bootAuth();
         $this->bootBroadcast();
+
+        // In demo mode, prevent all outgoing emails and notifications
+        if (config('app.env') === 'demo') {
+            Mail::fake();
+            Notification::fake();
+        }
     }
 
     /**
@@ -72,14 +83,14 @@ class AppServiceProvider extends ServiceProvider
 
     public function addMenus()
     {
-        //main menu
+        // main menu
         \Menu::make('main_menu', function ($menu) {
             foreach (config('invoiceshelf.main_menu') as $data) {
                 $this->generateMenu($menu, $data);
             }
         });
 
-        //setting menu
+        // setting menu
         \Menu::make('setting_menu', function ($menu) {
             foreach (config('invoiceshelf.setting_menu') as $data) {
                 $this->generateMenu($menu, $data);
@@ -118,6 +129,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('manage backups', [SettingsPolicy::class, 'manageBackups']);
         Gate::define('manage file disk', [SettingsPolicy::class, 'manageFileDisk']);
         Gate::define('manage email config', [SettingsPolicy::class, 'manageEmailConfig']);
+        Gate::define('manage pdf config', [SettingsPolicy::class, 'managePDFConfig']);
         Gate::define('manage notes', [NotePolicy::class, 'manageNotes']);
         Gate::define('view notes', [NotePolicy::class, 'viewNotes']);
 

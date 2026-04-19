@@ -3,23 +3,41 @@ name: Check
 # Run this workflow every time a new commit pushed to your repository
 on:
     push:
-        paths-ignore:
-            - '**/*.md'
-            - 'public/build/*.js'
-            - 'public/build/**/*.js'
-        branches-ignore:    
+        tags-ignore:
+            - "*"
+        branches-ignore:
             - 'translations'
     pull_request:
-        paths-ignore:
-            - '**/*.md'
-            - 'public/build/*.js'
-            - 'public/build/**/*.js'
-        branches-ignore:    
+        branches-ignore:
             - 'translations'
     # Allow manually triggering the workflow.
     workflow_dispatch:
 
 jobs:
+    changes:
+        name: 🔍 Detect changes
+        runs-on: ubuntu-latest
+        outputs:
+            php: ${{ steps.filter.outputs.php }}
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Check for file changes
+              uses: dorny/paths-filter@v3
+              id: filter
+              with:
+                  filters: |
+                      php:
+                          - 'app/**'
+                          - 'config/**'
+                          - 'database/**'
+                          - 'routes/**'
+                          - 'tests/**'
+                          - 'composer.json'
+                          - 'composer.lock'
+                          - 'phpunit.xml'
+
     kill_previous:
         name: 0️⃣ Kill previous runs
         runs-on: ubuntu-latest
@@ -36,11 +54,13 @@ jobs:
         runs-on: ubuntu-latest
         needs:
             - kill_previous
+            - changes
+        if: needs.changes.outputs.php == 'true'
         steps:
             - name: Set up PHP
               uses: shivammathur/setup-php@v2
               with:
-                  php-version: 8.2
+                  php-version: 8.4
 
             - name: Checkout code
               uses: actions/checkout@v4
@@ -55,18 +75,19 @@ jobs:
         name: 2️⃣ PHP ${{ matrix.php-version }} Tests
         needs:
             - php_syntax_errors
+            - changes
+        if: needs.changes.outputs.php == 'true'
         runs-on: ubuntu-latest
         strategy:
             matrix:
                 php-version:
-                    - 8.2
-                    - 8.3
+                    - 8.4
         env:
             extensions: bcmath, curl, dom, gd, imagick, json, libxml, mbstring, pcntl, pdo, pdo_mysql, zip
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
 
             - name: Setup PHP Action
               uses: shivammathur/setup-php@v2
@@ -79,10 +100,10 @@ jobs:
             - name: Install Composer dependencies
               uses: ramsey/composer-install@v2
 
-            - name: Use Node.js 20
-              uses: actions/setup-node@v3
+            - name: Use Node.js 24
+              uses: actions/setup-node@v4
               with:
-                  node-version: 20
+                  node-version: 24
 
             - name: Install
               run: npm install
@@ -92,52 +113,3 @@ jobs:
 
             - name: Apply tests ${{ matrix.php-version }}
               run: php artisan test
-
-    createReleaseFile:
-        name: 3️⃣ Build / Upload - Release File
-        if: github.ref_type == 'tag'
-        needs:
-            - tests
-        runs-on: ubuntu-latest
-        env:
-            extensions: bcmath, curl, dom, gd, imagick, json, libxml, mbstring, pcntl, pdo, pdo_mysql, zip
-
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v3
-
-            - name: Setup PHP
-              uses: shivammathur/setup-php@v2
-              with:
-                  php-version: 8.2
-                  extensions: ${{ env.extensions }}
-                  coverage: none
-
-            - name: Install Composer dependencies
-              uses: ramsey/composer-install@v2
-              with:
-                  composer-options: --no-dev
-
-            - name: Use Node.js 20
-              uses: actions/setup-node@v3
-              with:
-                  node-version: 20
-
-            - name: Install
-              run: npm install
-
-            - name: Compile Front-end
-              run: npm run build
-
-            - name: Build Dist
-              run: |
-                  make clean dist
-
-            - name: Upload package
-              uses: svenstaro/upload-release-action@v2
-              with:
-                  repo_token: ${{ github.token }}
-                  file: InvoiceShelf.zip
-                  asset_name: InvoiceShelf.zip
-                  tag: ${{ github.ref }}
-                  overwrite: true

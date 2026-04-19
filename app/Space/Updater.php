@@ -93,7 +93,7 @@ class Updater
             File::makeDirectory($temp_extract_dir);
         }
         // Unzip the file
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
 
         if ($zip->open($zip_file_path)) {
             $zip->extractTo($temp_extract_dir);
@@ -124,7 +124,7 @@ class Updater
         $files = json_decode($json);
 
         foreach ($files as $file) {
-            \File::delete(base_path($file));
+            File::delete(base_path($file));
         }
 
         return true;

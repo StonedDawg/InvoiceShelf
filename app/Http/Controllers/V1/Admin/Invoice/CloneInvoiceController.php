@@ -2,29 +2,31 @@
 
 namespace App\Http\Controllers\V1\Admin\Invoice;
 
+use App\Facades\Hashids;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\InvoiceResource;
 use App\Models\CompanySetting;
 use App\Models\Invoice;
 use App\Services\SerialNumberFormatter;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Vinkla\Hashids\Facades\Hashids;
 
 class CloneInvoiceController extends Controller
 {
     /**
      * Mail a specific invoice to the corresponding customer's email address.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function __invoke(Request $request, Invoice $invoice)
     {
+        $this->authorize('view', $invoice);
         $this->authorize('create', Invoice::class);
 
         $date = Carbon::now();
 
-        $serial = (new SerialNumberFormatter())
+        $serial = (new SerialNumberFormatter)
             ->setModel($invoice)
             ->setCompany($invoice->company_id)
             ->setCustomer($invoice->customer_id)
@@ -45,6 +47,16 @@ class CloneInvoiceController extends Controller
         }
 
         $exchange_rate = $invoice->exchange_rate;
+
+        $dateFormat = 'Y-m-d';
+        $invoiceTimeEnabled = CompanySetting::getSetting(
+            'invoice_use_time',
+            $request->header('company')
+        );
+
+        if ($invoiceTimeEnabled === 'YES') {
+            $dateFormat .= ' H:i';
+        }
 
         $newInvoice = Invoice::create([
             'invoice_date' => $date->format('Y-m-d'),
